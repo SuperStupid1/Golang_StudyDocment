@@ -1,0 +1,17 @@
+# IDE specific files
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+
+# Compiled output (if any in the future)
+*.exe
+*.out
