@@ -113,7 +113,7 @@ func main() {
 1. 向已关闭的 channel 发送数据会导致 panic
 2. 从已关闭的 channel 接收数据会返回该类型的零值
 3. 重复关闭 channel 会导致 panic
-4. 无缓冲 channel 的发送和接收操作是同步的，有缓冲 channel 的操作是异步的（在缓冲区未满/非空的情况下）
+4. 无缓冲 channel 的发送和接收操作是同步的，有缓冲 channel 的操作是异步的（在缓冲区未满/非空情况下）
 
 **拓展知识点**：
 - channel 可以用于实现信号量、互斥锁、条件变量等同步原语
@@ -739,380 +739,143 @@ func main() {
 - 在复杂系统中，可以使用死锁检测算法（如资源分配图）来分析潜在的死锁风险
 
 
-## 问题 11：Go 中的并发模式有哪些？
-答案 ： Go 中有多种常见的并发模式，用于解决不同类型的并发问题。这些模式利用 Go 的并发原语（goroutine、channel、select 等）来构建可靠、高效的并发程序。
+## 问题 11：如何实现并发安全的单例模式？
 
-常见的并发模式 ：
+**答案**：
+Go中实现并发安全单例模式有以下几种方式：
 
-1. **生产者-消费者模式 ：**一个或多个生产者生成数据并发送到通道，一个或多个消费者从通道接收数据并处理。
+1. **sync.Once实现**（推荐）：
 ```go
-func producer(ch chan<- int) {
-    for i := 0; i < 10; i++ {
-        ch <- i
-    }
-    close(ch)
-}
+package singleton
 
-func consumer(ch <-chan int, wg *sync.WaitGroup) {
-    defer wg.Done()
-    for v := range ch {
-        fmt.Println("消费:", v)
-    }
-}
+import "sync"
 
-func main() {
-    ch := make(chan int, 5)
-    var wg sync.WaitGroup
-    
-    // 启动生产者
-    go producer(ch)
-    
-    // 启动多个消费者
-    for i := 0; i < 3; i++ {
-        wg.Add(1)
-        go consumer(ch, &wg)
-    }
-    
-    wg.Wait()
+type singleton struct{}
+
+var instance *singleton
+var once sync.Once
+
+func GetInstance() *singleton {
+    once.Do(func() {
+        instance = &singleton{}
+    })
+    return instance
 }
 ```
 
-2. **扇出-扇入模式 ：**将工作分配给多个 goroutine（扇出），然后收集结果（扇入）。
+2. **互斥锁实现**：
 ```go
-func worker(id int, jobs <-chan int, results chan<- int) {
-    for j := range jobs {
-        fmt.Printf("工作者 %d 处理任务 %d\n", id, j)
-        time.Sleep(100 * time.Millisecond) // 模拟工作
-        results <- j * 2 // 发送结果
-    }
-}
+package singleton
 
-func main() {
-    jobs := make(chan int, 100)
-    results := make(chan int, 100)
+import "sync"
+
+type singleton struct{}
+
+var instance *singleton
+var mu sync.Mutex
+
+func GetInstance() *singleton {
+    mu.Lock()
+    defer mu.Unlock()
     
-    // 启动3个工作者（扇出）
-    for w := 1; w <= 3; w++ {
-        go worker(w, jobs, results)
+    if instance == nil {
+        instance = &singleton{}
     }
-    
-    // 发送9个任务
-    for j := 1; j <= 9; j++ {
-        jobs <- j
-    }
-    close(jobs)
-    
-    // 收集所有结果（扇入）
-    for a := 1; a <= 9; a++ {
-        <-results
-    }
+    return instance
 }
 ```
 
-3. **工作池模式 ：**创建固定数量的 goroutine 来处理工作，通常使用 WaitGroup 来等待所有工作完成。
+3. **双重检查锁**：
 ```go
-func worker(id int, tasks <-chan Task, wg *sync.WaitGroup) {
-    defer wg.Done()
-    for task := range tasks {
-        fmt.Printf("工作者 %d 执行任务: %v\n", id, task)
-        task.Execute()
-    }
-}
+package singleton
 
-type Task struct {
-    ID int
-}
+import "sync"
 
-func (t Task) Execute() {
-    fmt.Printf("执行任务 %d\n", t.ID)
-    time.Sleep(100 * time.Millisecond) // 模拟工作
-}
+type singleton struct{}
 
-func main() {
-    const numWorkers = 5
-    const numTasks = 20
-    
-    tasks := make(chan Task, numTasks)
-    var wg sync.WaitGroup
-    
-    // 创建工作池
-    for i := 1; i <= numWorkers; i++ {
-        wg.Add(1)
-        go worker(i, tasks, &wg)
-    }
-    
-    // 发送任务
-    for i := 1; i <= numTasks; i++ {
-        tasks <- Task{ID: i}
-    }
-    close(tasks)
-    
-    // 等待所有工作者完成
-    wg.Wait()
-}
-```
+var instance *singleton
+var mu sync.Mutex
 
-**4.超时模式 ：**使用 select 和 time.After 为操作设置超时。
-```go
-func doWork(done <-chan struct{}) (<-chan string, <-chan error) {
-    result := make(chan string)
-    errc := make(chan error, 1)
-    
-    go func() {
-        defer close(result)
-        defer close(errc)
+func GetInstance() *singleton {
+    if instance == nil {
+        mu.Lock()
+        defer mu.Unlock()
         
-        select {
-        case <-done:
-            return
-        case <-time.After(2 * time.Second):
-            // 模拟耗时操作
-            result <- "操作结果"
-        }
-    }()
-    
-    return result, errc
-}
-
-func main() {
-    done := make(chan struct{})
-    result, errc := doWork(done)
-    
-    select {
-    case r := <-result:
-        fmt.Println("成功:", r)
-    case err := <-errc:
-        fmt.Println("错误:", err)
-    case <-time.After(1 * time.Second):
-        fmt.Println("操作超时")
-        close(done) // 取消操作
-    }
-}
-```
-**5.取消模式 ：**使用 context 或 done 通道来取消正在进行的操作。
-```go
-func worker(ctx context.Context) {
-    for {
-        select {
-        case <-ctx.Done():
-            fmt.Println("工作被取消:", ctx.Err())
-            return
-        default:
-            fmt.Println("工作进行中...")
-            time.Sleep(500 * time.Millisecond)
+        if instance == nil {
+            instance = &singleton{}
         }
     }
-}
-
-func main() {
-    ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-    defer cancel()
-    
-    go worker(ctx)
-    
-    time.Sleep(3 * time.Second) // 等待工作被取消
-    fmt.Println("主函数退出")
+    return instance
 }
 ```
 
-**拓展知识点 ：**
+**性能对比**：
+- sync.Once性能最好，内部使用原子操作
+- 双重检查锁减少锁竞争
+- 简单互斥锁性能最差
 
-- 这些模式可以组合使用，构建更复杂的并发系统
-- 错误处理是并发模式中的重要考虑因素，通常使用专门的错误通道或 context 来传递错误
-- 在实际应用中，需要考虑资源限制、优雅退出和错误传播等问题
-- Go 标准库中的 errgroup 包提供了一种优雅的方式来管理一组相关的 goroutine 并处理错误
+## 问题 12：如何实现一个并发安全的环形缓冲区？
 
+**答案**：
+环形缓冲区(Ring Buffer)是高性能并发编程中的常用数据结构，适用于生产者-消费者场景。
 
-## 问题 12：Go 中的并发安全是什么？如何实现？
-**答案 ：** 并发安全是指在多个 goroutine 同时访问共享资源时，程序的行为仍然是正确的。在 Go 中，可以通过多种方式实现并发安全，主要包括：
-
-1. 不共享数据 ：遵循 CSP 模型，通过通道传递数据而不是共享内存
-2. 使用同步原语 ：如互斥锁、读写锁等保护共享资源
-3. 使用原子操作 ：对于简单的数值操作，使用 atomic 包
-4. 使用并发安全的数据结构 ：如 sync.Map
-**代码示例 ：**
-
-1. 通过通道实现并发安全 ：
+**实现方案**：
 ```go
-package main
+package ringbuffer
+
 import (
-    "fmt"
-    "time"
-)
-
-// 封装状态到一个结构体
-type Counter struct {
-    value int
-    requests chan counterRequest
-}
-
-type counterRequest struct {
-    op string // "inc", "get"
-    response chan int
-}
-
-// 启动计数器服务
-func NewCounter() *Counter {
-    c := &Counter{
-        requests: make(chan counterRequest),
-    }
-    go c.serve()
-    return c
-}
-
-// 服务循环
-func (c *Counter) serve() {
-    for req := range c.requests {
-        switch req.op {
-        case "inc":
-            c.value++
-            req.response <- c.value
-        case "get":
-            req.response <- c.value
-        }
-    }
-}
-
-// 增加计数
-func (c *Counter) Increment() int {
-    resp := make(chan int)
-    c.requests <- counterRequest{op: "inc", response: resp}
-    return <-resp
-}
-
-// 获取当前值
-func (c *Counter) Value() int {
-    resp := make(chan int)
-    c.requests <- counterRequest{op: "get", response: resp}
-    return <-resp
-}
-
-func main() {
-    counter := NewCounter()
-    
-    // 并发增加计数
-    for i := 0; i < 10; i++ {
-        go func() {
-            counter.Increment()
-        }()
-    }
-    
-    time.Sleep(time.Second)
-    fmt.Println("最终计数:", counter.Value())
-}
-```
-2. 使用互斥锁实现并发安全 ：
-```go
-package main
-import (
-    "fmt"
-    "sync"
-)
-
-type SafeCounter struct {
-    mu sync.Mutex
-    value int
-}
-
-func (c *SafeCounter) Increment() {
-    c.mu.Lock()
-    defer c.mu.Unlock()
-    c.value++
-}
-
-func (c *SafeCounter) Value() int {
-    c.mu.Lock()
-    defer c.mu.Unlock()
-    return c.value
-}
-
-func main() {
-    counter := SafeCounter{}
-    var wg sync.WaitGroup
-    
-    // 并发增加计数
-    for i := 0; i < 1000; i++ {
-        wg.Add(1)
-        go func() {
-            defer wg.Done()
-            counter.Increment()
-        }()
-    }
-    
-    wg.Wait()
-    fmt.Println("最终计数:", counter.Value())
-}
-```
-**3. 使用原子操作实现并发安全 ：**
-```go
-package main
-import (
-    "fmt"
     "sync"
     "sync/atomic"
 )
 
-func main() {
-    var counter int64
-    var wg sync.WaitGroup
-    
-    // 并发增加计数
-    for i := 0; i < 1000; i++ {
-        wg.Add(1)
-        go func() {
-            defer wg.Done()
-            atomic.AddInt64(&counter, 1)
-        }()
-    }
-    
-    wg.Wait()
-    fmt.Println("最终计数:", atomic.LoadInt64(&counter))
+type RingBuffer struct {
+    buffer []interface{}
+    size   int
+    head   int32
+    tail   int32
+    mu     sync.Mutex
 }
-```
-**4. 使用 sync.Map 实现并发安全 ：**
-```go
-package main
-import (
-    "fmt"
-    "sync"
-)
 
-func main() {
-    var m sync.Map
-    var wg sync.WaitGroup
+func NewRingBuffer(size int) *RingBuffer {
+    return &RingBuffer{
+        buffer: make([]interface{}, size),
+        size:   size,
+    }
+}
+
+func (r *RingBuffer) Put(item interface{}) bool {
+    r.mu.Lock()
+    defer r.mu.Unlock()
     
-    // 并发写入
-    for i := 0; i < 100; i++ {
-        wg.Add(1)
-        go func(i int) {
-            defer wg.Done()
-            m.Store(i, i*i)
-        }(i)
+    next := (r.head + 1) % r.size
+    if next == r.tail {
+        return false // 缓冲区已满
     }
     
-    // 并发读取
-    for i := 0; i < 100; i++ {
-        wg.Add(1)
-        go func(i int) {
-            defer wg.Done()
-            value, ok := m.Load(i)
-            if ok {
-                fmt.Printf("m[%d] = %d\n", i, value)
-            }
-        }(i)
+    r.buffer[r.head] = item
+    atomic.StoreInt32(&r.head, next)
+    return true
+}
+
+func (r *RingBuffer) Get() (interface{}, bool) {
+    r.mu.Lock()
+    defer r.mu.Unlock()
+    
+    if r.tail == r.head {
+        return nil, false // 缓冲区为空
     }
     
-    wg.Wait()
-    
-    // 遍历所有键值对
-    count := 0
-    m.Range(func(key, value interface{}) bool {
-        count++
-        return true
-    })
-    fmt.Println("map中的元素数量:", count)
+    item := r.buffer[r.tail]
+    atomic.StoreInt32(&r.tail, (r.tail+1)%r.size)
+    return item, true
 }
 ```
+
+**优化点**：
+1. 使用原子操作更新head/tail指针
+2. 适当大小的缓冲区减少竞争
+3. 批量操作减少锁开销
+4. 无锁实现（CAS）适用于超高并发
 
 **并发安全的最佳实践 ：**
 
