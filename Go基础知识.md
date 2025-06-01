@@ -719,7 +719,7 @@ func dangerousFunction() {
 
 
 ---
-        
+
 
 ## 问题 16：详细解释Go中切片的扩容机制
 
@@ -1719,8 +1719,8 @@ func bytesToString(b []byte) string {
 ---
 
 
-        
-        
+​        
+​        
 
 
-        
+​        
