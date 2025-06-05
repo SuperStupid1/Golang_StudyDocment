@@ -1,946 +1,494 @@
-# 📚 Redis 面试题大全
-
-## 🔑 基础概念
-
-### 1. Redis是什么？有哪些特点？
-**答案**：
-Redis是开源的内存数据结构存储，特点包括：
-1. 高性能(10万+/秒读写)
-2. 支持多种数据结构
-3. 持久化选项
-4. 高可用架构
-5. 丰富的客户端支持
-
-### 2. Redis适合哪些应用场景？
-**答案**：
-1. 缓存系统
-2. 会话存储
-3. 排行榜/计数器
-4. 消息队列
-5. 实时系统
-
-## 🧩 数据类型
-
-### 3. Redis支持哪些数据类型？
-**答案**：
-1. String: 字符串
-2. Hash: 哈希表
-3. List: 链表
-4. Set: 无序集合
-5. Sorted Set: 有序集合
-6. Bitmap/HyperLogLog/Geospatial等
-
-### 4. 如何选择合适的数据类型？
-**答案**：
-1. 简单KV用String
-2. 对象存储用Hash
-3. 队列/栈用List
-4. 去重用Set
-5. 排行榜用Sorted Set
-
-## 💾 持久化
-
-### 5. Redis有哪几种持久化方式？
-**答案**：
-1. RDB(快照)
-2. AOF(追加日志)
-3. 混合模式(Redis 4.0+)
-
-### 6. RDB和AOF有什么区别？
-**答案**：
-| 特性 | RDB | AOF |
-|------|-----|-----|
-| 恢复速度 | 快 | 慢 |
-| 数据安全 | 可能丢失数据 | 更高 |
-| 文件大小 | 小 | 大 |
-| 性能影响 | 高 | 低 |
-
-## ⚡ 性能优化
-
-### 7. 如何提高Redis性能？
-**答案**：
-1. 使用Pipeline减少RTT
-2. 合理选择数据结构
-3. 控制Key大小
-4. 使用连接池
-5. 避免大Key
-
-### 8. 什么是Redis Pipeline？
-**答案**：
-批量发送命令机制，减少网络往返时间(RTT)，提升吞吐量。
-
-```bash
-# 示例
-$ echo -e "SET key1 value1\nGET key1\nDEL key1" | redis-cli --pipe
-```
-
-## 🔒 分布式
-
-### 9. Redis如何实现分布式锁？
-**答案**：
-使用SETNX命令：
-```bash
-SET lock_key unique_value NX PX 30000
-```
-解锁时需验证value并删除。
-
-### 10. Redis Cluster工作原理？
-**答案**：
-1. 16384个哈希槽
-2. 节点负责部分槽
-3. 客户端重定向
-4. Gossip协议通信
-
-## 🚦 高可用
-
-### 11. Redis Sentinel是什么？
-**答案**：
-高可用解决方案，功能包括：
-1. 监控
-2. 通知
-3. 自动故障转移
-4. 配置提供
-
-### 12. 主从复制流程？
-**答案**：
-1. 从节点保存主节点信息
-2. 建立socket连接
-3. 发送PING命令
-4. 权限验证
-5. 同步数据集
-6. 持续命令传播
-
-## 🔄 内存管理
-
-### 13. Redis内存淘汰策略有哪些？
-**答案**：
-1. noeviction: 不淘汰
-2. allkeys-lru: 全体LRU
-3. volatile-lru: 过期集合LRU
-4. allkeys-random: 全体随机
-5. volatile-random: 过期集合随机
-6. volatile-ttl: 淘汰TTL小的
-
-### 14. 如何分析大Key？
-**答案**：
-1. redis-cli --bigkeys
-2. SCAN+DEBUG OBJECT
-3. RDB分析工具
-
-## 🛠️ 运维相关
-
-### 15. 如何安全重启Redis？
-**答案**：
-1. 开启持久化
-2. 执行SHUTDOWN SAVE
-3. 等待持久化完成
-4. 重启服务
-
-### 16. 如何监控Redis？
-**答案**：
-1. INFO命令
-2. redis-stat工具
-3. Prometheus+Granfana
-4. 慢查询日志
-
-## 💡 高级特性
-
-### 17. Redis事务特点？
-**答案**：
-1. 批量执行
-2. 原子性
-3. 不支持回滚
-4. 隔离性
-
-### 18. Lua脚本有什么优势？
-**答案**：
-1. 减少网络开销
-2. 原子性执行
-3. 复用逻辑
-4. 复杂操作封装
-
-## 🔄 集群管理
-
-### 19. 如何扩容Redis Cluster？
-**答案**：
-1. 添加新节点
-2. 迁移哈希槽
-3. 更新集群配置
-4. 客户端重定向
-
-### 20. 如何解决数据倾斜？
-**答案**：
-1. 分析大Key
-2. 拆分大Key
-3. 使用Hash Tag
-4. 调整槽分布
-
-## 🚀 实战应用
-
-### 21. 如何实现延迟队列？
-**答案**：
-使用Sorted Set：
-```bash
-ZADD delay_queue <timestamp> task_id
-ZRANGEBYSCORE delay_queue 0 <current_timestamp>
-```
-
-### 22. 如何实现分布式限流？
-**答案**：
-使用INCR+EXPIRE：
-```lua
-local key = "rate_limit:" .. KEYS[1]
-local limit = tonumber(ARGV[1])
-local current = tonumber(redis.call('get', key) or "0")
-if current + 1 > limit then
-    return 0
-else
-    redis.call("INCR", key)
-    redis.call("EXPIRE", key, ARGV[2])
-    return 1
-end
-```
-
-## 🔍 性能分析
-
-### 23. 如何诊断Redis性能问题？
-**答案**：
-1. 检查慢查询日志
-2. 分析INFO命令输出
-3. 监控内存使用
-4. 网络延迟测试
-
-### 24. 连接数过多怎么处理？
-**答案**：
-1. 使用连接池
-2. 调整timeout
-3. 限制客户端连接数
-4. 分析连接来源
-
-## 🛡️ 安全机制
-
-### 25. 如何保证Redis安全？
-**答案**：
-1. 设置密码
-2. 绑定IP
-3. 禁用危险命令
-4. 使用SSL
-5. 最小权限原则
-
-### 26. Redis有哪些危险命令？
-**答案**：
-1. FLUSHALL/FLUSHDB
-2. KEYS
-3. CONFIG
-4. DEBUG
-5. SHUTDOWN
-
-## 🔄 数据同步
-
-### 27. 主从复制延迟怎么解决？
-**答案**：
-1. 优化主节点性能
-2. 减少大Key
-3. 使用PSYNC2
-4. 监控复制偏移量
-
-### 28. 如何保证数据一致性？
-**答案**：
-1. 合理设置持久化
-2. 使用WAIT命令
-3. 监控复制状态
-4. 最终一致性设计
-
-## 🧠 缓存策略
-
-### 29. 缓存雪崩是什么？如何预防？
-**答案**：
-大量缓存同时失效导致DB压力骤增。预防：
-1. 随机过期时间
-2. 多级缓存
-3. 熔断机制
-
-### 30. 缓存穿透是什么？如何预防？
-**答案**：
-查询不存在的数据导致直接访问DB。预防：
-1. 布隆过滤器
-2. 空值缓存
-3. 参数校验
-
-## ⚙️ 配置优化
-
-### 31. 重要配置参数有哪些？
-**答案**：
-1. maxmemory
-2. maxmemory-policy
-3. timeout
-4. tcp-keepalive
-5. hz
-
-### 32. 如何选择合适的内存淘汰策略？
-**答案**：
-1. 缓存场景: allkeys-lru
-2. 持久化场景: volatile-lru
-3. 严格不丢失: noeviction
-
-## 🔄 集群运维
-
-### 33. 如何手动故障转移？
-**答案**：
-1. 在从节点执行CLUSTER FAILOVER
-2. 等待主从切换
-3. 更新客户端配置
-
-### 34. 如何修复集群脑裂？
-**答案**：
-1. 强制下线异常节点
-2. 手动故障转移
-3. 恢复网络分区
-4. 数据一致性检查
-
-## 💡 新特性
-
-### 35. Redis 6.0多线程模型？
-**答案**：
-1. IO多线程
-2. 命令执行仍单线程
-3. 提升网络性能
-4. 配置项: io-threads
-
-### 36. Redis Stream是什么？
-**答案**：
-消息队列实现，特点：
-1. 消息持久化
-2. 消费者组
-3. 消息回溯
-4. ACK机制
-
-## 🛠️ 工具使用
-
-### 37. redis-cli常用技巧？
-**答案**：
-1. --stat: 实时统计
-2. --bigkeys: 大Key分析
-3. --scan: 模式扫描
-4. --pipe: 批量导入
-
-### 38. 如何分析内存使用？
-**答案**：
-1. INFO memory
-2. redis-rdb-tools
-3. MEMORY USAGE命令
-4. MEMORY STATS
-
-## 🔄 数据迁移
-
-### 39. 如何迁移Redis数据？
-**答案**：
-1. MIGRATE命令
-2. 复制RDB文件
-3. 使用工具(redis-port)
-4. 双写策略
-
-### 40. 如何平滑迁移集群？
-**答案**：
-1. 增量同步
-2. 客户端双写
-3. 验证数据一致性
-4. 切换流量
-
-## 🧠 高级应用
-
-### 41. 如何实现分布式Session？
-**答案**：
-1. 使用Redis存储Session
-2. 设置合理过期时间
-3. 加密Session数据
-4. 多机房部署
-
-### 42. 如何实现秒杀系统？
-**答案**：
-1. 库存预减
-2. 消息队列削峰
-3. 限流措施
-4. 缓存热点数据
-
-## ⚡ 性能调优
-
-### 43. 如何优化大量写入？
-**答案**：
-1. Pipeline批量操作
-2. 多实例分片
-3. 异步写入
-4. 避免大Key
-
-### 44. 如何优化大量读取？
-**答案**：
-1. 增加从节点
-2. 客户端缓存
-3. 连接池优化
-4. 数据结构优化
-
-## 🔒 安全实践
-
-### 45. 如何防止命令注入？
-**答案**：
-1. 参数校验
-2. 使用Lua脚本
-3. 禁用危险命令
-4. 最小权限
-
-### 46. 如何审计Redis操作？
-**答案**：
-1. 开启AOF
-2. 使用MONITOR命令
-3. 第三方审计工具
-4. 日志分析
-
-## 🚀 集群设计
-
-### 47. 如何设计高可用架构？
-**答案**：
-1. 主从+Sentinel
-2. Cluster模式
-3. 多机房部署
-4. 自动故障检测
-
-### 48. 如何选择集群规模？
-**答案**：
-1. 数据量大小
-2. QPS需求
-3. 容灾要求
-4. 运维成本
-
-## 💾 持久化调优
-
-### 49. 如何优化RDB性能？
-**答案**：
-1. 调整save参数
-2. 低峰期执行
-3. 使用BGSAVE
-4. 避免大Key
-
-### 50. 如何优化AOF性能？
-**答案**：
-1. 调整appendfsync
-2. 使用AOF重写
-3. 优化磁盘IO
-4. 混合持久化
-
-
-
-
-
----
-
-## 🧠 Redis 场景面试题 Part 1（共15题）
-
----
-
-### 1. **Redis 可以用来做什么？列举几个常见的使用场景。**
-
-**答：**
-- 缓存（热点数据、页面缓存）
-- 分布式锁
-- 消息队列
-- 排行榜（有序集合）
-- 计数器（如点赞、访问量）
-- 购物车实现
-- 限流（如令牌桶算法）
-- 实时排行榜、签到系统
-
----
-
-### 2. **如果要存储一个用户对象信息，你会用什么 Redis 数据类型？为什么？**
-
-**答：**
-使用 `Hash` 数据结构。
-例如：
-```bash
-HSET user:1001 name "Tom" age 30 email "tom@example.com"
-```
-**原因：**
-- Hash 结构适合存储对象字段，节省内存。
-- 修改单个字段不需要整个对象重写。
-
----
-
-### 3. **如何用 Redis 实现一个简单的消息队列？**
-
-**答：**
-可以使用 `List` 类型实现：
-- 生产者使用 `RPUSH` 向队列尾部添加元素。
-- 消费者使用 `LPOP` 或 `BLPOP` 弹出元素进行处理。
-
-示例：
-```bash
-RPUSH queue task1 task2
-BLPOP queue 0
-```
-
-**注意：**
-- `BLPOP` 是阻塞式弹出，适合消费者等待任务。
-- 若需持久化或高可靠性，建议结合 Stream 使用。
-
----
-
-### 4. **如何用 Redis 实现一个分布式锁？需要注意哪些问题？**
-
-**答：**
-使用 `SET key value NX PX milliseconds` 命令实现：
-```bash
-SET lock_key my_value NX PX 10000
-```
-- `NX` 表示只有 key 不存在时才设置成功。
-- `PX` 设置过期时间，防止死锁。
-
-**注意事项：**
-- 锁的释放需要确保是持有锁的客户端才能删除。
-- 可使用 Lua 脚本保证原子性。
-- 避免因网络延迟导致锁失效后被其他线程获取。
-
----
-
-### 5. **如何设计一个缓存穿透的解决方案？**
-
-**答：**
-**缓存穿透**是指查询一个不存在的数据，数据库和缓存都没有命中，可能被恶意攻击。
-
-**解决方案：**
-- **空值缓存**：即使没有结果也缓存一个空值，并设置较短过期时间。
-- **布隆过滤器（BloomFilter）**：快速判断某个 key 是否存在，避免无效查询。
-- **参数校验**：在业务层对请求参数做合法性校验。
-
----
-
-### 6. **Redis 缓存雪崩是什么？如何解决？**
-
-**答：**
-**缓存雪崩**是指大量缓存同时失效，所有请求都打到数据库，可能导致数据库崩溃。
-
-**解决方案：**
-- **设置不同的过期时间**：在基础 TTL 上加一个随机值，比如 `TTL + random(0, 300)`
-- **集群部署**：分片缓存，避免集中失效。
-- **服务降级**：当缓存失效时，临时从数据库读取并重建缓存。
-
----
-
-### 7. **什么是缓存击穿？与缓存雪崩的区别是什么？**
-
-**答：**
-**缓存击穿**是指某个热点 key 突然失效，大量并发请求直接冲击数据库。
-
-**区别：**
-- 缓存雪崩是多个 key 失效。
-- 缓存击穿是一个热点 key 失效。
-
-**解决方案：**
-- 永不过期策略（逻辑过期时间）
-- 加互斥锁或本地锁控制重建缓存
-- 使用 Redis 的 `SET key value NX` 控制只有一个线程重建缓存
-
----
-
-### 8. **Redis 如何实现一个全局自增 ID？**
-
-**答：**
-使用 `INCR` 命令即可：
-```bash
-INCR order_id
-```
-每次调用都会返回递增的整数。
-
-**优点：**
-- 原子操作，保证唯一性和顺序性。
-- 性能高，适合高并发环境。
-
----
-
-### 9. **如何用 Redis 存储用户的登录状态？**
-
-**答：**
-可以使用 `String` 或 `Hash`：
-- `SET login:uid_123 token_xxx EX 3600`
-- 登录时设置 token 和过期时间。
-- 每次请求验证 token 是否存在。
-- 注销时删除 key。
-
-也可以配合 JWT 使用，将 token 放入 Redis 并设置过期时间。
-
----
-
-### 10. **如何实现一个“最近浏览记录”功能？**
-
-**答：**
-使用 `List`：
-- 用户访问商品 A，使用 `LPUSH` 插入列表头部。
-- 使用 `LTRIM` 保留最近 N 条记录。
-```bash
-LPUSH history:user_1 product_101
-LTRIM history:user_1 0 9
-```
-
-**优势：**
-- 列表天然支持插入、去重、截断。
-- 查询方便，可直接返回最近 N 条。
-
----
-
-### 11. **如何用 Redis 实现一个“共同好友”功能？**
-
-**答：**
-使用 `Set` 类型：
-- 每个用户的关注人存储为 Set。
-- 通过 `SINTER` 求两个用户的交集。
-```bash
-SADD friends:user_1 user_2 user_3 user_4
-SADD friends:user_2 user_1 user_3 user_5
-SINTER friends:user_1 friends:user_2
-```
-
-**输出：**
-- 返回 `user_2`, `user_3`，即共同好友。
-
----
-
-### 12. **如何实现一个“排行榜”功能？**
-
-**答：**
-使用 `Sorted Set`：
-- 成员为用户 ID，score 为积分。
-- 按 score 排序，支持排名查询。
-```bash
-ZADD leaderboard 9876 userA 9543 userB 9900 userC
-ZRANGE leaderboard 0 -1 WITHSCORES
-```
-
-**进阶：**
-- 支持按分数区间查询。
-- 可用于游戏排行、销售榜单等。
-
----
-
-### 13. **Redis 中有哪些数据结构可以实现计数器？各有什么优缺点？**
-
-**答：**
-
-| 数据结构 | 是否适用 | 说明                             |
-| -------- | -------- | -------------------------------- |
-| String   | ✅        | 用 `INCR`/`DECR` 实现简单计数器  |
-| Hash     | ❌        | 不适合单一计数，但适合多字段统计 |
-| List     | ❌        | 不适合计数                       |
-| Set      | ❌        | 不适合数值计数                   |
-| ZSet     | ❌        | 不适合单一计数                   |
-
-**推荐：**
-- 使用 `String` + `INCR`，高性能且支持并发。
-
----
-
-### 14. **如何用 Redis 实现一个“限流”功能？**
-
-**答：**
-常用方式：
-- **固定窗口限流**：使用 `INCR` + `EXPIRE`
-```bash
-INCR rate_limit:user_1
-EXPIRE rate_limit:user_1 60
-```
-- 如果 `rate_limit:user_1` > 100，则拒绝请求。
-
-**更高级方案：**
-- 使用 Redis + Lua 脚本实现滑动窗口限流。
-- 或者使用 Redis 的 `TimeSeries` 模块。
-
----
-
-### 15. **Redis 中 HyperLogLog 是什么？适用于什么场景？**
-
-**答：**
-HyperLogLog 是一种概率数据结构，用于估算集合中不重复元素的数量（基数），占用空间极小。
-
-**特点：**
-- 占用内存少（约 12KB）
-- 误差率约为 0.81%
+# 📚 Redis 面试题精选
+
+## 🔑 基础概念与数据类型
+
+### 1. Redis 的特点和应用场景？
+**答案：**
+Redis 是一个开源的内存数据结构存储系统，具有以下特点：
+1. 高性能：基于内存，单线程模型，10w+ QPS
+2. 数据结构丰富：支持 String、Hash、List、Set、Sorted Set 等
+3. 原子性：所有操作都是原子性的
+4. 持久化：支持 RDB 和 AOF
+5. 主从复制：支持数据备份和读写分离
 
 **应用场景：**
-- UV 统计（独立访客）
-- 去重统计（如每天独立搜索词数量）
-- 实时数据分析中的基数估算
+1. 缓存系统（热点数据、会话信息）
+2. 计数器（文章阅读量、用户点赞数）
+3. 消息队列（基于 List 或 Stream）
+4. 排行榜（基于 Sorted Set）
+5. 分布式锁（基于 SETNX）
 
----
+### 2. Redis 数据类型的最佳实践？
+**答案：**
 
-当然可以！以下是 **第二部分：另外15道 Redis 场景面试题及答案**，涵盖高可用、持久化、集群、性能优化、常见问题排查等内容，适合中高级开发和架构师的 Redis 面试准备。
+| 数据类型 | 使用场景 | 实现原理 | 注意事项 |
+|----------|----------|----------|----------|
+| String | 缓存、计数器 | 动态字符串 | 大 key 问题 |
+| Hash | 对象存储 | 哈希表 | 字段数量 |
+| List | 消息队列 | 双向链表 | 长度控制 |
+| Set | 去重、关系 | 哈希表 | 集合运算开销 |
+| Sorted Set | 排行榜 | 跳表+哈希表 | score 精度 |
 
----
-
-## 🧠 Redis 场景面试题 Part 2（共15题）
-
----
-
-### 16. **Redis 持久化机制有哪些？分别适用于什么场景？**
-
-**答：**
-Redis 支持两种持久化方式：
-
-| 类型 | 名称       | 特点                                 | 适用场景               |
-| ---- | ---------- | ------------------------------------ | ---------------------- |
-| RDB  | 快照持久化 | 某个时间点的数据快照，文件小，恢复快 | 容灾备份、冷备         |
-| AOF  | 追加日志   | 记录每条写命令，数据更安全，可读性强 | 数据安全性要求高的场景 |
-
-**推荐组合使用：**
-- 同时开启 RDB + AOF，兼顾性能与安全。
-
----
-
-### 17. **Redis 的内存淘汰策略有哪些？如何选择？**
-
-**答：**
-Redis 内存不足时会根据淘汰策略进行 key 删除，常用策略如下：
-
-| 策略              | 描述                                 |
-| ----------------- | ------------------------------------ |
-| `noeviction`      | 不删除 key，写操作返回错误           |
-| `allkeys-lru`     | 所有 key 中淘汰最近最少使用的        |
-| `volatile-lru`    | 只在设置了过期时间的 key 中 LRU 淘汰 |
-| `allkeys-random`  | 所有 key 随机淘汰                    |
-| `volatile-random` | 在设置了过期时间的 key 中随机淘汰    |
-| `volatile-ttl`    | 优先淘汰更早过期的 key               |
-
-**选择建议：**
-- 缓存服务推荐使用 `allkeys-lru`
-- 只缓存热点数据时用 `volatile-lru`
-- 要求 key 永不过期用 `noeviction`
-
----
-
-### 18. **Redis 主从复制的原理是什么？有什么作用？**
-
-**答：**
-主从复制是 Redis 实现高可用的基础机制。
-
-**原理：**
-- 从节点连接主节点，发送 `SYNC` 命令。
-- 主节点生成 RDB 快照并发送给从节点。
-- 主节点将后续写操作同步到从节点（增量复制）。
-
-**作用：**
-- 数据冗余，提高可用性
-- 读写分离，主写从读，提升并发能力
-- 支持故障转移（结合哨兵或集群）
-
----
-
-### 19. **Redis 哨兵模式的作用是什么？如何实现自动故障转移？**
-
-**答：**
-**哨兵（Sentinel）** 是 Redis 的高可用方案，主要功能包括：
-- 监控主从节点状态
-- 自动选举新的主节点
-- 客户端重定向
-
-**故障转移流程：**
-1. 哨兵检测到主节点下线；
-2. 多个哨兵协商确认主节点客观下线；
-3. 选出一个从节点晋升为主；
-4. 其他从节点指向新主节点；
-5. 更新客户端配置。
-
----
-
-### 20. **Redis Cluster 分片机制是如何工作的？**
-
-**答：**
-Redis Cluster 使用哈希槽（hash slot）来实现分布式存储。
-
-- 总共有 16384 个 hash slot；
-- 每个 key 经过 CRC16 校验后对 16384 取模，决定放在哪个 slot；
-- 每个节点负责一部分 slot；
-- 客户端直接连接节点，支持重定向。
-
-**特点：**
-- 数据分片，横向扩展
-- 支持自动迁移、故障转移
-- 不依赖中间件，原生支持分布式
-
----
-
-### 21. **Redis Cluster 和 哨兵模式的区别是什么？**
-
-| 对比项     | 哨兵模式             | Cluster 模式              |
-| ---------- | -------------------- | ------------------------- |
-| 架构       | 主从 + 哨兵进程      | 数据分片                  |
-| 故障转移   | 支持                 | 支持                      |
-| 数据分布   | 单节点               | 多节点分片                |
-| 客户端支持 | 需要支持哨兵的客户端 | 需要支持 Cluster 的客户端 |
-| 扩展性     | 有限                 | 更好，支持水平扩展        |
-
----
-
-### 22. **Redis 如何实现大 Key 的拆分？为什么需要避免大 Key？**
-
-**答：**
-**大 Key 问题：**
-- 占用大量内存
-- 序列化/反序列化耗时
-- 删除或查询效率低
-- 影响持久化和主从同步性能
-
-**解决办法：**
-- 将 Hash、List、Set 拆分为多个小 key
-- 使用二级结构，例如：
+**代码示例：**
 ```bash
-user:1001:profile
-user:1001:orders
+# String 计数器
+INCR page_view
+
+# Hash 存储用户信息
+HMSET user:1001 name "Tom" age "20" 
+
+# List 实现队列
+LPUSH queue:tasks "task1"
+RPOP queue:tasks
+
+# Set 存储关注关系
+SADD following:1001 1002 1003
+
+# Sorted Set 实现排行榜
+ZADD leaderboard 99.5 user:1001
 ```
-- 或者使用模块如 RedisJSON 存储复杂结构
 
----
+## 💾 持久化机制
 
-### 23. **Redis Pipeline 有什么作用？什么时候使用？**
+### 3. Redis 持久化方案的选择？
+**答案：**
 
-**答：**
-Pipeline 是 Redis 提供的一种批量执行命令的机制。
+**RDB（快照）：**
+1. 原理：某一时刻的完整数据快照
+2. 优点：
+   - 文件紧凑，适合备份
+   - 恢复速度快
+   - 子进程备份，影响小
+3. 缺点：
+   - 可能丢失最后一次快照后的数据
+   - 大数据集时 fork() 耗时
 
-**作用：**
-- 减少网络往返次数，提高吞吐量
-- 避免多次 TCP 请求延迟
+**AOF（日志）：**
+1. 原理：记录所有写操作命令
+2. 优点：
+   - 数据安全性高
+   - 可读性强，便于恢复
+3. 缺点：
+   - 文件体积大
+   - 恢复速度慢
+
+**最佳实践：**
+```bash
+# redis.conf
+save 900 1      # 900秒内至少1个key变化
+save 300 10     # 300秒内至少10个key变化
+save 60 10000   # 60秒内至少10000个key变化
+
+appendonly yes
+appendfsync everysec
+```
+
+## 🔄 缓存策略
+
+### 4. Redis 缓存更新策略？
+**答案：**
+
+**Cache-Aside（旁路缓存）：**
+```python
+def get_user(user_id):
+    user = redis.get(f"user:{user_id}")
+    if not user:
+        user = db.query(user_id)
+        redis.setex(f"user:{user_id}", 3600, user)
+    return user
+```
+
+**Write-Through（读写穿透）：**
+```python
+def update_user(user_id, data):
+    db.update(user_id, data)
+    redis.setex(f"user:{user_id}", 3600, data)
+```
+
+**Write-Behind（异步写入）：**
+```python
+def update_user(user_id, data):
+    redis.setex(f"user:{user_id}", 3600, data)
+    async_task.delay(update_db, user_id, data)
+```
+
+### 5. 缓存穿透、击穿、雪崩的解决方案？
+**答案：**
+
+| 问题 | 描述 | 解决方案 |
+|------|------|----------|
+| 缓存穿透 | 查询不存在的数据 | 布隆过滤器、空值缓存 |
+| 缓存击穿 | 热点 key 过期 | 互斥锁、永不过期 |
+| 缓存雪崩 | 大量 key 同时过期 | 随机过期时间、多级缓存 |
+
+**布隆过滤器示例：**
+```python
+from bloom_filter import BloomFilter
+
+bloom = BloomFilter(capacity=10000, error_rate=0.001)
+bloom.add("user:1001")
+
+def get_user(user_id):
+    if f"user:{user_id}" not in bloom:
+        return None
+    # 继续查询缓存和数据库
+```
+
+## 🔒 分布式锁
+
+### 6. Redis 分布式锁的实现？
+**答案：**
+
+**基本实现：**
+```python
+def acquire_lock(lock_key, expire_seconds):
+    return redis.set(lock_key, uuid.uuid4(), nx=True, ex=expire_seconds)
+
+def release_lock(lock_key, lock_value):
+    lua_script = """
+    if redis.call('get', KEYS[1]) == ARGV[1] then
+        return redis.call('del', KEYS[1])
+    else
+        return 0
+    end
+    """
+    return redis.eval(lua_script, 1, lock_key, lock_value)
+```
+
+**Redlock 算法：**
+1. 获取当前时间
+2. 依次向 N 个节点获取锁
+3. 计算获取锁消耗的时间
+4. 锁的有效性检查
+5. 释放锁（向所有节点发送释放命令）
+
+## 🌐 集群架构
+
+### 7. Redis 集群方案对比？
+**答案：**
+
+**主从复制：**
+1. 配置简单：`slaveof master_ip master_port`
+2. 数据一致性：异步复制
+3. 故障转移：需要外部支持
+
+**哨兵模式：**
+1. 自动故障检测和转移
+2. 客户端支持
+3. 配置：
+```bash
+sentinel monitor mymaster 127.0.0.1 6379 2
+sentinel down-after-milliseconds mymaster 5000
+```
+
+**Cluster 模式：**
+1. 数据自动分片
+2. 去中心化
+3. 配置：
+```bash
+cluster-enabled yes
+cluster-node-timeout 5000
+cluster-config-file nodes.conf
+```
+
+### 8. Redis Cluster 数据分片原理？
+**答案：**
+1. 槽位分配：16384 个槽位
+2. 节点负责一定范围的槽位
+3. CRC16 计算 key 的槽位
+4. 跨槽操作限制
 
 **示例：**
-一次发送多个 `GET`、`SET` 命令，一次性接收结果。
+```python
+def get_slot(key):
+    return crc16(key) % 16384
 
-**使用场景：**
-- 批量插入测试数据
-- 批量更新缓存
-- 批量查询（非事务）
-
-**注意：**
-- Pipeline 不保证原子性
-- 如果某条失败，其余仍会执行
-
----
-
-### 24. **Redis Lua 脚本的作用是什么？如何使用？**
-
-**答：**
-Lua 脚本用于在 Redis 服务器端执行一系列命令，具有原子性。
-
-**作用：**
-- 保证多个操作的原子性
-- 减少网络开销
-- 实现复杂逻辑（如限流、锁等）
-
-**使用方式：**
-```lua
-EVAL "return redis.call('set', 'key', 'value')" 0
+def get_node(key):
+    slot = get_slot(key)
+    return slot_node_mapping[slot]
 ```
 
-**示例：释放分布式锁：**
-```lua
-if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("del", KEYS[1])
-else
+## 📈 性能优化
+
+### 9. Redis 性能优化方案？
+**答案：**
+
+**内存优化：**
+1. 合理的数据结构
+2. 设置过期时间
+3. maxmemory 和淘汰策略
+
+**命令优化：**
+1. 批量操作（Pipeline）
+2. 禁用慢命令（keys、flushall）
+3. Lua 脚本优化
+
+**架构优化：**
+1. 读写分离
+2. 数据分片
+3. 使用连接池
+
+**监控指标：**
+```bash
+# 内存指标
+info memory
+
+# 性能指标
+info stats
+
+# 慢查询
+slowlog get 10
+```
+
+### 10. Redis 大 key 处理方案？
+**答案：**
+
+**发现大 key：**
+```bash
+redis-cli --bigkeys
+debug object <key>
+```
+
+**处理方案：**
+1. 拆分大 key：
+```python
+# 拆分大 hash
+for field in redis.hscan_iter("big_hash"):
+    redis.hset(f"small_hash:{field}", field, value)
+```
+
+2. 压缩数据：
+```python
+import zlib
+compressed_data = zlib.compress(raw_data)
+redis.set("compressed_key", compressed_data)
+```
+
+3. 采用合适的数据结构
+
+## 🔧 运维实践
+
+### 11. Redis 常见问题排查？
+**答案：**
+
+**延迟问题：**
+1. 使用 latency monitor
+2. 检查网络延迟
+3. 排查慢命令
+
+**内存问题：**
+1. 监控内存使用
+2. 分析内存碎片
+3. 定期清理过期 key
+
+**CPU 问题：**
+1. 排查慢查询
+2. 优化命令使用
+3. 控制并发连接
+
+### 12. Redis 备份与恢复策略？
+**答案：**
+
+**备份策略：**
+1. RDB 文件备份
+2. AOF 文件备份
+3. 从节点备份
+
+**恢复流程：**
+```bash
+# RDB 恢复
+cp dump.rdb /var/lib/redis/
+redis-server restart
+
+# AOF 恢复
+redis-check-aof --fix appendonly.aof
+redis-server restart
+```
+
+## 🚀 高级特性
+
+### 13. Redis 事务实现原理？
+**答案：**
+
+**MULTI/EXEC 实现：**
+```python
+def transfer(from_user, to_user, amount):
+    pipe = redis.pipeline(transaction=True)
+    pipe.multi()
+    try:
+        pipe.hincrby(f"user:{from_user}", "balance", -amount)
+        pipe.hincrby(f"user:{to_user}", "balance", amount)
+        pipe.execute()
+        return True
+    except Exception as e:
+        pipe.discard()
+        return False
+```
+
+**特点：**
+1. 命令排队执行
+2. 不支持回滚
+3. 乐观锁实现（WATCH）
+
+### 14. Redis Stream 消息队列？
+**答案：**
+
+**特点：**
+1. 持久化消息队列
+2. 消费组模式
+3. 消息确认机制
+
+**示例：**
+```python
+# 生产者
+redis.xadd("mystream", {"sensor_id": 1234, "temperature": 19.8})
+
+# 消费者组
+redis.xgroup_create("mystream", "mygroup", "$")
+while True:
+    messages = redis.xreadgroup("mygroup", "consumer1", {"mystream": ">"}, count=1)
+    process_messages(messages)
+    redis.xack("mystream", "mygroup", message_id)
+```
+
+## 🔮 Redis 6.0+ 新特性
+
+### 15. Redis 6.0 多线程模型？
+**答案：**
+
+**特点：**
+1. IO 多线程
+2. 命令执行仍然单线程
+3. 提升网络性能
+
+**配置：**
+```bash
+io-threads 4
+io-threads-do-reads yes
+```
+
+**最佳实践：**
+1. 根据 CPU 核心数配置线程
+2. 监控线程性能
+3. 适用于网络 IO 密集场景
+
+### 16. Redis 新数据类型使用？
+**答案：**
+
+**Streams：**
+- 消息队列的完整实现
+- 消费组管理
+- 消息持久化
+
+**RedisJSON：**
+- 原生 JSON 支持
+- 路径查询
+- 原子操作
+
+**RedisTimeSeries：**
+- 时间序列数据
+- 自动降采样
+- 聚合计算
+
+## 📊 监控与告警
+
+### 17. Redis 监控指标有哪些？
+**答案：**
+
+**核心指标：**
+1. 性能指标：
+   - 操作延迟
+   - QPS
+   - 连接数
+
+2. 内存指标：
+   - 使用率
+   - 碎片率
+   - 淘汰次数
+
+3. 复制指标：
+   - 复制延迟
+   - 连接状态
+
+**监控工具：**
+```bash
+# Prometheus + Redis Exporter
+grafana_dashboard:
+  - redis_memory
+  - redis_performance
+  - redis_replication
+```
+
+## 🎯 实战案例
+
+### 18. 如何设计一个商品库存系统？
+**答案：**
+
+**架构设计：**
+1. Redis + MySQL 双写
+2. 预扣库存
+3. 异步确认
+
+**代码实现：**
+```python
+def deduct_stock(product_id, quantity):
+    lua_script = """
+    local stock = redis.call('get', KEYS[1])
+    if not stock or tonumber(stock) < tonumber(ARGV[1]) then
+        return 0
+    end
+    redis.call('decrby', KEYS[1], ARGV[1])
+    return 1
+    """
+    return redis.eval(lua_script, 1, f"stock:{product_id}", quantity)
+```
+
+### 19. 如何实现一个排行榜系统？
+**答案：**
+
+**功能特点：**
+1. 实时更新
+2. 分数排名
+3. 获取前 N 名
+
+**实现方案：**
+```python
+# 更新分数
+redis.zadd("leaderboard", {"player:1001": 89.5})
+
+# 获取排名
+rank = redis.zrevrank("leaderboard", "player:1001")
+
+# 获取前 N 名
+top_n = redis.zrevrange("leaderboard", 0, 9, withscores=True)
+```
+
+### 20. 如何实现一个限流系统？
+**答案：**
+
+**算法选择：**
+1. 固定窗口
+2. 滑动窗口
+3. 令牌桶
+
+**实现示例：**
+```python
+def sliding_window_ratelimit(user_id, window_size=60, max_requests=10):
+    lua_script = """
+    local key = KEYS[1]
+    local now = tonumber(ARGV[1])
+    local window = tonumber(ARGV[2])
+    local max_req = tonumber(ARGV[3])
+    
+    redis.call('zremrangebyscore', key, 0, now - window)
+    local count = redis.call('zcard', key)
+    
+    if count < max_req then
+        redis.call('zadd', key, now, now .. '-' .. math.random())
+        return 1
+    end
     return 0
-end
+    """
+    return redis.eval(lua_script, 1, f"ratelimit:{user_id}", time.time(), window_size, max_requests)
 ```
-
----
-
-### 25. **Redis 中的 BigKey 和 HotKey 是什么？如何发现和处理？**
-
-**答：**
-
-| 类型   | 描述                                | 发现方式                                  | 解决方法                                |
-| ------ | ----------------------------------- | ----------------------------------------- | --------------------------------------- |
-| BigKey | 占用内存大的 key（如大 List、Hash） | 使用 `redis-cli --bigkeys`                | 拆分、压缩、换结构                      |
-| HotKey | 高频访问的 key                      | 监控工具（如 Redis 自带监控、Prometheus） | 本地缓存 + 异步更新、读写分离、缓存预热 |
-
----
-
-### 26. **Redis 中的慢查询日志（slow log）是什么？如何查看？**
-
-**答：**
-Redis 提供了内置的慢查询日志功能，记录执行时间超过阈值的命令。
-
-**相关命令：**
-```bash
-SLOWLOG GET [n]   # 查看慢查询日志
-SLOWLOG LEN       # 获取日志数量
-SLOWLOG RESET     # 清除日志
-```
-
-**配置参数：**
-- `slowlog-log-slower-than`：设置记录慢查询的阈值（单位：微秒）
-- `slowlog-max-len`：最大保存条数
-
-**用途：**
-- 排查性能瓶颈
-- 优化高频、耗时命令
-
----
-
-### 27. **Redis 中的 SCAN 命令相比 KEYS 有什么优势？**
-
-**答：**
-
-| 命令                                      | 是否阻塞 | 是否适合生产环境 | 说明                                 |
-| ----------------------------------------- | -------- | ---------------- | ------------------------------------ |
-| KEYS pattern                              | 是       | ❌                | 遍历所有 key，大数据量下会卡住 Redis |
-| SCAN cursor [MATCH pattern] [COUNT count] | 否       | ✅                | 增量遍历 key，不会阻塞 Redis         |
-
-**使用建议：**
-- 生产环境中应使用 `SCAN` 替代 `KEYS`，防止 Redis 因扫描导致不可用。
-
----
-
-### 28. **Redis 中的内存占用过高如何排查？**
-
-**答：**
-可以通过以下手段排查：
-
-1. **使用 `INFO memory` 查看内存使用情况**
-2. **使用 `redis-cli --mem-usage` 或 `MEMORY USAGE key` 查看具体 key 占用**
-3. **使用 `redis-cli --bigkeys` 找出占用内存最大的 key**
-4. **分析是否使用了大对象、未过期 key、重复 key**
-5. **检查是否有不必要的缓存未清理**
-6. **使用 Redis 模块如 RedisJSON、RedisGraph 分析特定类型数据**
-
----
-
-### 29. **Redis 是否支持事务？与传统数据库事务有何区别？**
-
-**答：**
-Redis 支持简单的事务机制，通过 `MULTI` / `EXEC` 实现。
-
-**Redis 事务特点：**
-- 命令进入队列，最后一起执行
-- 不支持回滚（即使某个命令失败，其他也会继续执行）
-- 不具备 ACID 中的原子性和一致性（仅保证顺序执行）
-
-**与传统数据库事务对比：**
-- Redis 事务不提供真正的回滚机制
-- 更适合轻量级、顺序执行的场景
-
-**替代方案：**
-- 使用 Lua 脚本实现更复杂的原子操作
-
----
-
-### 30. **Redis 中的 Cluster 模式是否支持多数据库？如果不支持怎么办？**
-
-**答：**
-Redis Cluster **不支持** 多数据库（即不能使用 `SELECT db_index`），默认只使用 `db0`。
-
-**原因：**
-- Cluster 设计为分布式系统，多数据库会增加管理复杂度。
-
-**解决方案：**
-- 使用不同的 Redis 实例隔离不同业务
-- 使用命名空间（前缀）区分 key，例如：
-```bash
-order:user_1
-config:appA
-```
-
----
 
